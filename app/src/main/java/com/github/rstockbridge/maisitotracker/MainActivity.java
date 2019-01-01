@@ -10,10 +10,10 @@ import android.hardware.SensorManager;
 import android.hardware.SensorManager.DynamicSensorCallback;
 import android.content.Intent;
 
+import com.github.rstockbridge.maisitotracker.posting.PosterProvider;
+
 public class MainActivity extends AppCompatActivity {
 
-//    private static final String TAG = MainActivity.class.getSimpleName();
-//
 //    private SensorManager mSensorManager;
 //    private TemperaturePressureEventListener mSensorEventListener;
 //    private DynamicSensorCallback mDynamicSensorCallback = new DynamicSensorCallback() {
@@ -35,34 +35,8 @@ public class MainActivity extends AppCompatActivity {
         Log.d("maisito-tracker", "Main Activity created");
 
 //        startTemperaturePressureRequest();
-    }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        Log.d("maisito-tracker", "Main Activity started");
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        Log.d("maisito-tracker", "Main Activity resumed");
-    }
-
-    @Override
-    protected void onPause() {
-        Log.d("maisito-tracker", "Main Activity paused");
-
-        super.onPause();
-    }
-
-    @Override
-    protected void onStop() {
-        Log.d("maisito-tracker", "Main Activity stopped");
-
-        super.onStop();
+        new PosterProvider().getPoster().post("An activity was created");
     }
 
     @Override
