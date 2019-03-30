@@ -1,73 +1,100 @@
 package com.github.rstockbridge.maisitotracker;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.hardware.SensorManager.DynamicSensorCallback;
-import android.content.Intent;
 
 import com.github.rstockbridge.maisitotracker.posting.PosterProvider;
+import com.google.android.things.pio.Gpio;
+import com.google.android.things.pio.GpioCallback;
+import com.google.android.things.pio.PeripheralManager;
+
+import java.io.IOException;
+
+import static com.github.rstockbridge.maisitotracker.Constants.TAG;
+import static com.google.android.things.pio.Gpio.ACTIVE_HIGH;
+import static com.google.android.things.pio.Gpio.DIRECTION_IN;
+import static com.google.android.things.pio.Gpio.EDGE_BOTH;
+import static java.util.Locale.US;
 
 public class MainActivity extends AppCompatActivity {
 
-//    private SensorManager mSensorManager;
-//    private TemperaturePressureEventListener mSensorEventListener;
-//    private DynamicSensorCallback mDynamicSensorCallback = new DynamicSensorCallback() {
-//        @Override
-//        public void onDynamicSensorConnected(Sensor sensor) {
-//            if (sensor.getType() == Sensor.TYPE_AMBIENT_TEMPERATURE) {
-//                Log.i(TAG, "Temperature sensor connected");
-//                mSensorEventListener = new TemperaturePressureEventListener();
-//                mSensorManager.registerListener(mSensorEventListener, sensor, SensorManager.SENSOR_DELAY_NORMAL);
-//            }
-//        }
-//    };
+    private static final String GPIO_NAME = "BCM24";
+
+    private Gpio gpio;
+
+    private SwitchState lastSwitchState;
+
+    private GpioCallback gpioCallback = new GpioCallback() {
+        @Override
+        public boolean onGpioEdge(final Gpio gpio) {
+            try {
+                processGpioValue(gpio.getValue());
+            } catch (final IOException e) {
+                Log.e(TAG, "Unable to read value from GPIO " + GPIO_NAME, e);
+            }
+
+            return true;
+        }
+
+        @Override
+        public void onGpioError(final Gpio gpio, final int error) {
+            Log.e(TAG, "GPIO error received: " + error);
+        }
+    };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.d("maisito-tracker", "Main Activity created");
-
-//        startTemperaturePressureRequest();
+        Log.d(TAG, "Main Activity created");
 
         new PosterProvider().getPoster().post("An activity was created");
+
+        try {
+            Log.d(TAG, "Configuring GPIO " + GPIO_NAME);
+
+            final PeripheralManager manager = PeripheralManager.getInstance();
+            gpio = manager.openGpio(GPIO_NAME);
+            gpio.setDirection(DIRECTION_IN);
+            gpio.setActiveType(ACTIVE_HIGH);
+            gpio.setEdgeTriggerType(EDGE_BOTH);
+            gpio.registerGpioCallback(gpioCallback);
+
+            processGpioValue(gpio.getValue());
+        } catch (final IOException e) {
+            Log.e(TAG, "Unable to access GPIO " + GPIO_NAME, e);
+        }
     }
 
     @Override
     protected void onDestroy() {
-        Log.d("maisito-tracker", "Main Activity destroyed");
+        Log.d(TAG, "Main Activity destroyed");
+
+        if (gpio != null) {
+            gpio.unregisterGpioCallback(gpioCallback);
+
+            try {
+                gpio.close();
+                gpio = null;
+            } catch (final IOException e) {
+                Log.e(TAG, "Unable to close GPIO " + GPIO_NAME, e);
+            }
+        }
 
         super.onDestroy();
-//        stopTemperaturePressureRequest();
     }
 
-//    private void startTemperaturePressureRequest() {
-//        this.startService(new Intent(this, PressureSensorService.class));
-//        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-//        mSensorManager.registerDynamicSensorCallback(mDynamicSensorCallback);
-//    }
-//
-//    private void stopTemperaturePressureRequest() {
-//        this.stopService(new Intent(this, PressureSensorService.class));
-//        mSensorManager.unregisterDynamicSensorCallback(mDynamicSensorCallback);
-//        mSensorManager.unregisterListener(mSensorEventListener);
-//    }
-//
-//    private class TemperaturePressureEventListener implements SensorEventListener {
-//        @Override
-//        public void onSensorChanged(SensorEvent event) {
-//            Log.i(TAG, "sensor changed: " + event.values[0]);
-//        }
-//
-//        @Override
-//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-//            Log.i(TAG, "sensor accuracy changed: " + accuracy);
-//        }
-//    }
+    private void processGpioValue(final boolean gpioValue) {
+        final SwitchState switchState = SwitchState.fromGpioValue(gpioValue);
+
+        if (switchState.equals(lastSwitchState)) {
+            return;
+        }
+
+        lastSwitchState = switchState;
+        Log.d(TAG, "New switch state detected: " + switchState.toString().toLowerCase(US));
+    }
+
 }
