@@ -1,6 +1,7 @@
 package com.github.rstockbridge.maisitotracker;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
@@ -19,9 +20,11 @@ import static java.util.Locale.US;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String GPIO_NAME = "BCM24";
+    private static final String GPIO_1_NAME = "BCM24";
+    private static final String GPIO_2_NAME = "BCM20";
 
-    private Gpio gpio;
+    private Gpio gpio1;
+    private Gpio gpio2;
 
     private SwitchState lastSwitchState;
 
@@ -29,9 +32,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean onGpioEdge(final Gpio gpio) {
             try {
-                processGpioValue(gpio.getValue());
+                processGpioValue(gpio.getName(), gpio.getValue());
             } catch (final IOException e) {
-                Log.e(TAG, "Unable to read value from GPIO " + GPIO_NAME, e);
+                Log.e(TAG, "Unable to read value from GPIO " + gpio.getName(), e);
             }
 
             return true;
@@ -52,41 +55,57 @@ public class MainActivity extends AppCompatActivity {
 
         new PosterProvider().getPoster().post("An activity was created");
 
-        try {
-            Log.d(TAG, "Configuring GPIO " + GPIO_NAME);
-
-            final PeripheralManager manager = PeripheralManager.getInstance();
-            gpio = manager.openGpio(GPIO_NAME);
-            gpio.setDirection(DIRECTION_IN);
-            gpio.setActiveType(ACTIVE_HIGH);
-            gpio.setEdgeTriggerType(EDGE_BOTH);
-            gpio.registerGpioCallback(gpioCallback);
-
-            processGpioValue(gpio.getValue());
-        } catch (final IOException e) {
-            Log.e(TAG, "Unable to access GPIO " + GPIO_NAME, e);
-        }
+        configureGpio(gpio1, GPIO_1_NAME);
+        configureGpio(gpio2, GPIO_2_NAME);
     }
 
     @Override
     protected void onDestroy() {
         Log.d(TAG, "Main Activity destroyed");
 
-        if (gpio != null) {
-            gpio.unregisterGpioCallback(gpioCallback);
+        if (gpio1 != null) {
+            gpio1.unregisterGpioCallback(gpioCallback);
 
             try {
-                gpio.close();
-                gpio = null;
+                gpio1.close();
+                gpio1 = null;
             } catch (final IOException e) {
-                Log.e(TAG, "Unable to close GPIO " + GPIO_NAME, e);
+                Log.e(TAG, "Unable to close GPIO " + GPIO_1_NAME, e);
+            }
+        }
+
+        if (gpio2 != null) {
+            gpio2.unregisterGpioCallback(gpioCallback);
+
+            try {
+                gpio2.close();
+                gpio2 = null;
+            } catch (final IOException e) {
+                Log.e(TAG, "Unable to close GPIO " + GPIO_2_NAME, e);
             }
         }
 
         super.onDestroy();
     }
 
-    private void processGpioValue(final boolean gpioValue) {
+    private void configureGpio(Gpio gpio, @NonNull final String gpioName) {
+        try {
+            Log.d(TAG, "Configuring GPIO " + gpioName);
+
+            final PeripheralManager manager = PeripheralManager.getInstance();
+            gpio = manager.openGpio(gpioName);
+            gpio.setDirection(DIRECTION_IN);
+            gpio.setActiveType(ACTIVE_HIGH);
+            gpio.setEdgeTriggerType(EDGE_BOTH);
+            gpio.registerGpioCallback(gpioCallback);
+
+            processGpioValue(gpio.getName(), gpio.getValue());
+        } catch (final IOException e) {
+            Log.e(TAG, "Unable to access GPIO " + gpio.getName(), e);
+        }
+    }
+
+    private void processGpioValue(@NonNull final String gpioName, final boolean gpioValue) {
         final SwitchState switchState = SwitchState.fromGpioValue(gpioValue);
 
         if (switchState.equals(lastSwitchState)) {
@@ -94,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         lastSwitchState = switchState;
-        Log.d(TAG, "New switch state detected: " + switchState.toString().toLowerCase(US));
+        Log.d(TAG, "New switch state detected for GPIO " + gpioName + ": " + switchState.toString().toLowerCase(US));
     }
 
 }
