@@ -12,6 +12,9 @@ import com.google.android.things.pio.GpioCallback;
 import com.google.android.things.pio.PeripheralManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 import static com.google.android.things.pio.Gpio.ACTIVE_HIGH;
@@ -21,12 +24,12 @@ import static java.util.Locale.US;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String GPIO_1_NAME = "BCM24";
-    private static final String GPIO_2_NAME = "BCM20";
+    private static final List<String> GPIO_NAMES = Arrays.asList("BCM24", "BCM20");
 
-    private Gpio gpio1;
-    private Gpio gpio2;
+    @NonNull
+    private final List<Gpio> gpios = new ArrayList<>();
 
+    @Nullable
     private SwitchState lastSwitchState;
 
     private final GpioCallback gpioCallback = new GpioCallback() {
@@ -56,16 +59,18 @@ public class MainActivity extends AppCompatActivity {
 
         new PosterProvider().getPoster().post("An activity was created");
 
-        gpio1 = configureGpio(GPIO_1_NAME);
-        gpio2 = configureGpio(GPIO_2_NAME);
+        for (final String gpioName : GPIO_NAMES) {
+            gpios.add(configureGpio(gpioName));
+        }
     }
 
     @Override
     protected void onDestroy() {
         Log.d(TAG, "Main Activity destroyed");
 
-        tearDownGpio(gpio1);
-        tearDownGpio(gpio2);
+        for (final Gpio gpio : gpios) {
+            tearDownGpio(gpio);
+        }
 
         super.onDestroy();
     }
