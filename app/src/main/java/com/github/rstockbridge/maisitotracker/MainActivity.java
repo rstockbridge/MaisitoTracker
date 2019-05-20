@@ -2,6 +2,7 @@ package com.github.rstockbridge.maisitotracker;
 
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
@@ -28,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
 
     private SwitchState lastSwitchState;
 
-    private GpioCallback gpioCallback = new GpioCallback() {
+    private final GpioCallback gpioCallback = new GpioCallback() {
         @Override
         public boolean onGpioEdge(final Gpio gpio) {
             try {
@@ -55,53 +56,39 @@ public class MainActivity extends AppCompatActivity {
 
         new PosterProvider().getPoster().post("An activity was created");
 
-        configureGpio(gpio1, GPIO_1_NAME);
-        configureGpio(gpio2, GPIO_2_NAME);
+        gpio1 = configureGpio(GPIO_1_NAME);
+        gpio2 = configureGpio(GPIO_2_NAME);
     }
 
     @Override
     protected void onDestroy() {
         Log.d(TAG, "Main Activity destroyed");
 
-        if (gpio1 != null) {
-            gpio1.unregisterGpioCallback(gpioCallback);
-
-            try {
-                gpio1.close();
-                gpio1 = null;
-            } catch (final IOException e) {
-                Log.e(TAG, "Unable to close GPIO " + GPIO_1_NAME, e);
-            }
-        }
-
-        if (gpio2 != null) {
-            gpio2.unregisterGpioCallback(gpioCallback);
-
-            try {
-                gpio2.close();
-                gpio2 = null;
-            } catch (final IOException e) {
-                Log.e(TAG, "Unable to close GPIO " + GPIO_2_NAME, e);
-            }
-        }
+        tearDownGpio(gpio1);
+        tearDownGpio(gpio2);
 
         super.onDestroy();
     }
 
-    private void configureGpio(Gpio gpio, @NonNull final String gpioName) {
+    // GPIO lifecycle
+
+    @NonNull
+    private Gpio configureGpio(@NonNull final String gpioName) {
         try {
             Log.d(TAG, "Configuring GPIO " + gpioName);
 
             final PeripheralManager manager = PeripheralManager.getInstance();
-            gpio = manager.openGpio(gpioName);
+            final Gpio gpio = manager.openGpio(gpioName);
             gpio.setDirection(DIRECTION_IN);
             gpio.setActiveType(ACTIVE_HIGH);
             gpio.setEdgeTriggerType(EDGE_BOTH);
             gpio.registerGpioCallback(gpioCallback);
 
             processGpioValue(gpio.getName(), gpio.getValue());
+
+            return gpio;
         } catch (final IOException e) {
-            Log.e(TAG, "Unable to access GPIO " + gpio.getName(), e);
+            throw new RuntimeException("Unable to access GPIO " + gpioName);
         }
     }
 
@@ -114,6 +101,20 @@ public class MainActivity extends AppCompatActivity {
 
         lastSwitchState = switchState;
         Log.d(TAG, "New switch state detected for GPIO " + gpioName + ": " + switchState.toString().toLowerCase(US));
+    }
+
+    private void tearDownGpio(@Nullable final Gpio gpio) {
+        if (gpio != null) {
+            gpio.unregisterGpioCallback(gpioCallback);
+
+            try {
+                gpio.close();
+            } catch (final IOException e) {
+                Log.e(TAG, "Unable to close GPIO " + gpio.getName(), e);
+            }
+        } else {
+            Log.e(TAG, "GPIO never initialized; no teardown required.");
+        }
     }
 
 }
