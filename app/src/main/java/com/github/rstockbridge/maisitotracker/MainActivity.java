@@ -20,17 +20,44 @@ import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 import static com.google.android.things.pio.Gpio.ACTIVE_HIGH;
 import static com.google.android.things.pio.Gpio.DIRECTION_IN;
 import static com.google.android.things.pio.Gpio.EDGE_BOTH;
-import static java.util.Locale.US;
 
 public class MainActivity extends AppCompatActivity {
+
+    private final Brain brain = new Brain(new PosterProvider().getPoster());
+
+    // Activity lifecycle
+
+    @Override
+    protected void onCreate(final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Log.d(TAG, "Main Activity created");
+
+        for (final String gpioName : GPIO_NAMES) {
+            gpios.add(configureGpio(gpioName));
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "Main Activity destroyed");
+
+        tearingDown = true;
+
+        for (final Gpio gpio : gpios) {
+            tearDownGpio(gpio);
+        }
+
+        super.onDestroy();
+    }
+
+    // GPIO state + methods
 
     private static final List<String> GPIO_NAMES = Arrays.asList("BCM24", "BCM20");
 
     @NonNull
     private final List<Gpio> gpios = new ArrayList<>();
-
-    @Nullable
-    private SwitchState lastSwitchState;
 
     private boolean tearingDown = false;
 
@@ -60,35 +87,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    @Override
-    protected void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        Log.d(TAG, "Main Activity created");
-
-        new PosterProvider().getPoster().post("An activity was created");
-
-        for (final String gpioName : GPIO_NAMES) {
-            gpios.add(configureGpio(gpioName));
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        Log.d(TAG, "Main Activity destroyed");
-
-        tearingDown = true;
-
-        for (final Gpio gpio : gpios) {
-            tearDownGpio(gpio);
-        }
-
-        super.onDestroy();
-    }
-
-    // GPIO lifecycle
-
     @NonNull
     private Gpio configureGpio(@NonNull final String gpioName) {
         try {
@@ -110,14 +108,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processGpioValue(@NonNull final String gpioName, final boolean gpioValue) {
-        final SwitchState switchState = SwitchState.fromGpioValue(gpioValue);
-
-        if (switchState.equals(lastSwitchState)) {
-            return;
-        }
-
-        lastSwitchState = switchState;
-        Log.d(TAG, "New switch state detected for GPIO " + gpioName + ": " + switchState.toString().toLowerCase(US));
+        brain.processGpioValue(gpioName, gpioValue);
     }
 
     private void tearDownGpio(@Nullable final Gpio gpio) {
