@@ -32,20 +32,30 @@ public class MainActivity extends AppCompatActivity {
     @Nullable
     private SwitchState lastSwitchState;
 
+    private boolean tearingDown = false;
+
     private final GpioCallback gpioCallback = new GpioCallback() {
         @Override
         public boolean onGpioEdge(final Gpio gpio) {
-            try {
-                processGpioValue(gpio.getName(), gpio.getValue());
-            } catch (final IOException e) {
-                Log.e(TAG, "Unable to read value from GPIO " + gpio.getName(), e);
-            }
+            if (tearingDown) {
+                return false;
+            } else {
+                try {
+                    processGpioValue(gpio.getName(), gpio.getValue());
+                } catch (final IOException e) {
+                    Log.e(TAG, "Unable to read value from GPIO " + gpio.getName(), e);
+                }
 
-            return true;
+                return true;
+            }
         }
 
         @Override
         public void onGpioError(final Gpio gpio, final int error) {
+            if (tearingDown) {
+                return;
+            }
+
             Log.e(TAG, "GPIO error received: " + error);
         }
     };
@@ -67,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         Log.d(TAG, "Main Activity destroyed");
+
+        tearingDown = true;
 
         for (final Gpio gpio : gpios) {
             tearDownGpio(gpio);
