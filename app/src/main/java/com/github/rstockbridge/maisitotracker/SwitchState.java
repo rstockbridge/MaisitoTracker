@@ -4,7 +4,7 @@ import android.support.annotation.NonNull;
 
 public enum SwitchState {
 
-    OPEN, CLOSED;
+    OPEN, CLOSED, UNKNOWN;
 
     @NonNull
     public static SwitchState fromGpioValue(final boolean value) {

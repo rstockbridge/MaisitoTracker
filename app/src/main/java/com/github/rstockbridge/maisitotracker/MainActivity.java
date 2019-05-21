@@ -23,7 +23,7 @@ import static com.google.android.things.pio.Gpio.EDGE_BOTH;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final Brain brain = new Brain(new PosterProvider().getPoster());
+    private final Brain brain = new Brain(GPIO_NAMES, new PosterProvider().getPoster());
 
     // Activity lifecycle
 
