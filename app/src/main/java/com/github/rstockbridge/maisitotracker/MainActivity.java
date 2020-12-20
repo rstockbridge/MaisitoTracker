@@ -23,7 +23,7 @@ import static com.google.android.things.pio.Gpio.EDGE_BOTH;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final Brain brain = new Brain(GPIO_NAMES, new PosterProvider().getPoster());
+    private final Brain brain = new Brain(new PosterProvider().getPoster());
 
     // Activity lifecycle
 
@@ -34,9 +34,8 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Main Activity created");
 
-        for (final String gpioName : GPIO_NAMES) {
-            gpios.add(configureGpio(gpioName));
-        }
+        gpio = configureGpio();
+        processCurrentGpioValue(gpio);
     }
 
     @Override
@@ -44,22 +43,16 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Main Activity destroyed");
 
         tearingDown = true;
-
-        for (final Gpio gpio : gpios) {
-            tearDownGpio(gpio);
-        }
+        tearDownGpio();
 
         super.onDestroy();
     }
 
     // GPIO state + methods
 
-    private static final List<String> GPIO_NAMES = Arrays.asList("BCM24", "BCM20");
+    private static final String GPIO_NAME = "BCM24";
 
-    @NonNull
-    private final List<Gpio> gpios = new ArrayList<>();
-
-    private boolean tearingDown = false;
+    private Gpio gpio = null;
 
     private final GpioCallback gpioCallback = new GpioCallback() {
         @Override
@@ -67,12 +60,7 @@ public class MainActivity extends AppCompatActivity {
             if (tearingDown) {
                 return false;
             } else {
-                try {
-                    processGpioValue(gpio.getName(), gpio.getValue());
-                } catch (final IOException e) {
-                    Log.e(TAG, "Unable to read value from GPIO " + gpio.getName(), e);
-                }
-
+                processCurrentGpioValue(gpio);
                 return true;
             }
         }
@@ -87,36 +75,40 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private boolean tearingDown = false;
+
     @NonNull
-    private Gpio configureGpio(@NonNull final String gpioName) {
+    private Gpio configureGpio() {
         try {
-            Log.d(TAG, "Configuring GPIO " + gpioName);
+            Log.d(TAG, "Configuring " + GPIO_NAME);
 
             final PeripheralManager manager = PeripheralManager.getInstance();
-            final Gpio gpio = manager.openGpio(gpioName);
+            final Gpio gpio = manager.openGpio(GPIO_NAME);
             gpio.setDirection(DIRECTION_IN);
             gpio.setActiveType(ACTIVE_HIGH);
             gpio.setEdgeTriggerType(EDGE_BOTH);
             gpio.registerGpioCallback(gpioCallback);
-
-            processGpioValue(gpio.getName(), gpio.getValue());
-
             return gpio;
         } catch (final IOException e) {
-            throw new RuntimeException("Unable to access GPIO " + gpioName);
+            throw new RuntimeException("Unable to access " + GPIO_NAME);
         }
     }
 
-    private void processGpioValue(@NonNull final String gpioName, final boolean gpioValue) {
-        brain.processGpioValue(gpioName, gpioValue);
+    private void processCurrentGpioValue(final Gpio gpio) {
+        try {
+            brain.processGpioValue(gpio.getValue());
+        } catch (final IOException e) {
+            Log.e(TAG, "Unable to read value from " + GPIO_NAME, e);
+        }
     }
 
-    private void tearDownGpio(@Nullable final Gpio gpio) {
+    private void tearDownGpio() {
         if (gpio != null) {
             gpio.unregisterGpioCallback(gpioCallback);
 
             try {
                 gpio.close();
+                gpio = null;
             } catch (final IOException e) {
                 Log.e(TAG, "Unable to close GPIO " + gpio.getName(), e);
             }
