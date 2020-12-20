@@ -14,7 +14,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static com.github.rstockbridge.maisitotracker.Constants.TAG;
-import static com.github.rstockbridge.maisitotracker.SwitchState.UNKNOWN;
+import static com.github.rstockbridge.maisitotracker.Pressure.UNKNOWN;
 
 final class Brain {
 
@@ -22,77 +22,44 @@ final class Brain {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
     @NonNull
-    private final Map<String, SwitchState> switchStates = new HashMap<>();
+    private Pressure lastPressure = UNKNOWN;
 
     @NonNull
     private final Poster poster;
 
     @Nullable
-    private ScheduledFuture postFuture;
+    private ScheduledFuture pendingPost;
 
-    Brain(@NonNull final List<String> gpioNames, @NonNull final Poster poster) {
-        for (final String gpioName : gpioNames) {
-            switchStates.put(gpioName, UNKNOWN);
-        }
-
+    Brain(@NonNull final Poster poster) {
         this.poster = poster;
     }
 
-    void processGpioValue(@NonNull final String gpioName, final boolean gpioValue) {
-        final SwitchState lastSwitchState = switchStates.get(gpioName);
-        final SwitchState newSwitchState = SwitchState.fromGpioValue(gpioValue);
+    void processGpioValue(final boolean gpioValue) {
+        final Pressure newPressure = Pressure.fromGpioValue(gpioValue);
 
-        if (newSwitchState.equals(lastSwitchState)) {
-            return;
-        }
+        Log.d(TAG, "New pressure: " + newPressure.toString());
 
-        switchStates.put(gpioName, newSwitchState);
-        Log.d(TAG, "New switch state for GPIO " + gpioName + ": " + newSwitchState.toString());
+        if (newPressure.equals(UNKNOWN)) return;
+        if (newPressure.equals(lastPressure)) return;
 
-        // todo if new state means at least half of switches are closed and no action is currently
-        //  scheduled, schedule action to post at least 30s in the future
+        lastPressure = newPressure;
 
-        final int newClosedSwitchCount = getClosedSwitchCount();
+        if (lastPressure.equals(UNKNOWN)) return;
 
-        if (postFuture == null && shouldSchedulePost(newClosedSwitchCount)) {
-            postFuture = executor.schedule(new Runnable() {
+        final boolean catPresent = newPressure == Pressure.HIGH;
+
+        if (catPresent && pendingPost == null) {
+            pendingPost = executor.schedule(new Runnable() {
                 @Override
                 public void run() {
                     poster.post("Maisy's in her heated bed!");
                 }
             }, 30, TimeUnit.SECONDS);
-        }
-
-        // todo if new state means fewer than half of switches are engaged and action is currently
-        //  scheduled, cancel pending action
-
-        if (postFuture != null && shouldCancelPost(newClosedSwitchCount)) {
-            postFuture.cancel(false);
+        } else if (!catPresent && pendingPost != null) {
+            pendingPost.cancel(false);
         }
 
         // todo never post within 5 minutes of previous post
-
-
-    }
-
-    private boolean shouldSchedulePost(final int newSwitchClosedCount) {
-        return newSwitchClosedCount >= (int) Math.ceil(switchStates.size() / 2.0);
-    }
-
-    private boolean shouldCancelPost(final int newSwitchClosedCount) {
-        return newSwitchClosedCount < (int) Math.ceil(switchStates.size() / 2.0);
-    }
-
-    private int getClosedSwitchCount() {
-        int result = 0;
-
-        for (final SwitchState switchState : switchStates.values()) {
-            if (switchState == SwitchState.CLOSED) {
-                result++;
-            }
-        }
-
-        return result;
     }
 
 }
