@@ -37,12 +37,12 @@ final class Brain {
     void processGpioValue(final boolean gpioValue) {
         final Pressure newPressure = Pressure.fromGpioValue(gpioValue);
 
-        Log.d(TAG, "New pressure: " + newPressure.toString());
-
         if (newPressure.equals(UNKNOWN)) return;
         if (newPressure.equals(lastPressure)) return;
 
         lastPressure = newPressure;
+
+        Log.d(TAG, "New pressure: " + newPressure.toString());
 
         if (lastPressure.equals(UNKNOWN)) return;
 
