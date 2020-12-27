@@ -172,7 +172,7 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
                             .post(() -> imageView.setImageBitmap(bitmap));
 
                     final PostData postData = new PostData(
-                            "Test message",
+                            "Maisy has entered her heated bed!",
                             new ByteArrayInputStream(bytes)
                     );
 
