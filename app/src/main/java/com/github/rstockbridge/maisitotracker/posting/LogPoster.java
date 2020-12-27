@@ -8,8 +8,8 @@ import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 public final class LogPoster implements Poster {
 
     @Override
-    public void post(@NonNull final String message) {
-        Log.d(TAG, "Message posted: " + message);
+    public void post(@NonNull final PostData postData) {
+        Log.d(TAG, "[DEBUG] PostData " + postData + "posted.");
     }
 
 }

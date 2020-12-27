@@ -137,13 +137,14 @@ public final class MaisitoCamera {
         }
 
         try {
+            Log.d(TAG, "Creating capture session.");
             device.createCaptureSession(
                     Collections.singletonList(imageReader.getSurface()),
                     sessionCallback,
                     null
             );
         } catch (final CameraAccessException e) {
-            Log.e(TAG, "Access exception while preparing picture.", e);
+            Log.e(TAG, "Camera access exception while creating capture session.", e);
         }
     }
 
@@ -153,14 +154,14 @@ public final class MaisitoCamera {
     private final CameraCaptureSession.StateCallback sessionCallback =
             new CameraCaptureSession.StateCallback() {
                 @Override
-                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    // The camera is already closed
+                public void onConfigured(@NonNull final CameraCaptureSession session) {
                     if (device == null) {
+                        Log.e(TAG, "Camera already closed; not triggering capture for session " + session);
                         return;
                     }
 
                     // When the session is ready, we start capture.
-                    captureSession = cameraCaptureSession;
+                    captureSession = session;
                     triggerImageCapture();
                 }
 

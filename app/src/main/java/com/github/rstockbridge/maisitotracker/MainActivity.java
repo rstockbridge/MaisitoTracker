@@ -16,11 +16,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import com.github.rstockbridge.maisitotracker.posting.PostData;
 import com.github.rstockbridge.maisitotracker.posting.PosterProvider;
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.GpioCallback;
 import com.google.android.things.pio.PeripheralManager;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -29,12 +31,15 @@ import static com.google.android.things.pio.Gpio.ACTIVE_HIGH;
 import static com.google.android.things.pio.Gpio.DIRECTION_IN;
 import static com.google.android.things.pio.Gpio.EDGE_BOTH;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements Brain.OnShouldPostListener {
 
-    private final Brain brain = new Brain(new PosterProvider().getPoster());
+    //region Views
+
     private ImageView imageView;
 
-    // Activity lifecycle
+    //endregion
+
+    //region Lifecycle methods
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -81,7 +86,9 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    // GPIO state + methods
+    //endregion
+
+    //region GPIO
 
     private static final String GPIO_NAME = "BCM24";
 
@@ -149,7 +156,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Camera state + methods
+    //endregion
+
+    //region Camera
 
     private HandlerThread cameraThread;
 
@@ -161,15 +170,23 @@ public class MainActivity extends AppCompatActivity {
                     final ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                     final byte[] bytes = new byte[buffer.remaining()];
                     buffer.get(bytes);
+                    image.close();
+
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
 
                     new Handler(Looper.getMainLooper()).post(new Runnable() {
                         @Override
                         public void run() {
                             imageView.setImageBitmap(bitmap);
-                            image.close();
                         }
                     });
+
+                    final PostData postData = new PostData(
+                            "Test message",
+                            new ByteArrayInputStream(bytes)
+                    );
+
+                    new PosterProvider().getPoster().post(postData);
                 }
             };
 
@@ -177,5 +194,24 @@ public class MainActivity extends AppCompatActivity {
         cameraThread.quitSafely();
         MaisitoCamera.instance.shutDown();
     }
+
+    //endregion
+
+    //region Brain
+
+    private final Brain brain = new Brain(this);
+
+    @Override
+    public void onShouldPost() {
+        new Handler(Looper.getMainLooper())
+                .post(new Runnable() {
+                    @Override
+                    public void run() {
+                        MaisitoCamera.instance.takePicture();
+                    }
+                });
+    }
+
+    //endregion
 
 }

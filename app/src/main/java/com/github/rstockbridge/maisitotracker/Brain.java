@@ -4,8 +4,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.github.rstockbridge.maisitotracker.posting.Poster;
-
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -15,6 +13,10 @@ import static com.github.rstockbridge.maisitotracker.Pressure.UNKNOWN;
 
 final class Brain {
 
+    public interface OnShouldPostListener {
+        void onShouldPost();
+    }
+
     @NonNull
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
@@ -22,13 +24,13 @@ final class Brain {
     private Pressure lastPressure = UNKNOWN;
 
     @NonNull
-    private final Poster poster;
+    private final OnShouldPostListener listener;
 
     @Nullable
     private ScheduledFuture pendingPost;
 
-    Brain(@NonNull final Poster poster) {
-        this.poster = poster;
+    public Brain(@NonNull final OnShouldPostListener listener) {
+        this.listener = listener;
     }
 
     void processGpioValue(final boolean gpioValue) {
@@ -46,14 +48,20 @@ final class Brain {
         final boolean catPresent = newPressure == Pressure.HIGH;
 
         if (catPresent && pendingPost == null) {
+            Log.d(TAG, "Scheduling new post.");
+
             pendingPost = executor.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    poster.post("Maisy's in her heated bed!");
+                    Log.d(TAG, "Executing scheduled post.");
+                    pendingPost = null;
+                    listener.onShouldPost();
                 }
-            }, 30, TimeUnit.SECONDS);
+            }, 5, TimeUnit.SECONDS);
         } else if (!catPresent && pendingPost != null) {
+            Log.d(TAG, "Canceling scheduled post.");
             pendingPost.cancel(false);
+            pendingPost = null;
         }
 
         // todo never post within 5 minutes of previous post

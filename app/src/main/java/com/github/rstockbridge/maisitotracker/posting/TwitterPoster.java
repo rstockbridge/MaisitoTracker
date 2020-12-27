@@ -4,8 +4,9 @@ import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
-import java.util.Date;
+import java.util.UUID;
 
+import twitter4j.StatusUpdate;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
@@ -29,11 +30,11 @@ public final class TwitterPoster implements Poster {
     }
 
     @Override
-    public void post(@NonNull final String message) {
-        new TweetTask(twitter).execute(message);
+    public void post(@NonNull final PostData postData) {
+        new TweetTask(twitter).execute(postData);
     }
 
-    private static final class TweetTask extends AsyncTask<String, Void, Void> {
+    private static final class TweetTask extends AsyncTask<PostData, Void, Void> {
 
         @NonNull
         private final Twitter twitter;
@@ -43,12 +44,17 @@ public final class TwitterPoster implements Poster {
         }
 
         @Override
-        protected Void doInBackground(final String... message) {
+        protected Void doInBackground(final PostData... allPostData) {
             try {
-                final String timeStamp = String.valueOf(new Date().getTime());
-                twitter.updateStatus(message[0] + " @ " + timeStamp + "!");
+                final PostData postData = allPostData[0];
+                final String imageFileName = UUID.randomUUID().toString();
+
+                final StatusUpdate statusUpdate = new StatusUpdate(postData.body);
+                statusUpdate.setMedia(imageFileName, postData.imageStream);
+
+                twitter.updateStatus(statusUpdate);
             } catch (final TwitterException e) {
-                Log.e(TAG, "Exception while attempting to tweet:", e);
+                Log.e(TAG, "Exception while attempting to tweet.", e);
             }
 
             return null;

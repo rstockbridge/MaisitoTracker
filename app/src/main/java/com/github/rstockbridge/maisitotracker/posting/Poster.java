@@ -4,6 +4,6 @@ import android.support.annotation.NonNull;
 
 public interface Poster {
 
-    void post(@NonNull String message);
+    void post(@NonNull PostData postData);
 
 }
