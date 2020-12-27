@@ -11,6 +11,7 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.media.ImageReader;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Handler;
+import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -130,6 +131,7 @@ public final class MaisitoCamera {
     /**
      * Begin a still image capture
      */
+    @MainThread
     public void takePicture() {
         if (device == null) {
             Log.e(TAG, "Cannot capture image. Camera not initialized.");
