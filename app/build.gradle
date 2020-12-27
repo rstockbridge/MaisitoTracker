@@ -15,6 +15,7 @@ android {
         buildConfigField "String", "ACCESS_TOKEN_SECRET", "\"$maisitoTrackerAccessTokenSecret\""
         buildConfigField "boolean", "DRY_RUN", "false"
         buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "60"
+        buildConfigField "long", "COOLDOWN_M", "30"
     }
 
     compileOptions {

@@ -52,6 +52,8 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
         final Button takePictureButton = findViewById(R.id.take_picture_button);
         takePictureButton.setOnClickListener(view -> MaisitoCamera.instance.takePicture());
 
+        brain = new Brain(new SystemClock(), new SharedPrefsStorage(this), this);
+
         gpio = configureGpio();
         processCurrentGpioValue(gpio);
 
@@ -189,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
 
     //region Brain
 
-    private final Brain brain = new Brain(this);
+    private Brain brain;
 
     @Override
     public void onShouldPost() {

@@ -7,9 +7,11 @@ import android.util.Log;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import static com.github.rstockbridge.maisitotracker.BuildConfig.COOLDOWN_M;
 import static com.github.rstockbridge.maisitotracker.BuildConfig.HIGH_PRESSURE_TRIGGER_DURATION_S;
 import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 import static com.github.rstockbridge.maisitotracker.Pressure.UNKNOWN;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 final class Brain {
@@ -25,13 +27,26 @@ final class Brain {
     private Pressure lastPressure = UNKNOWN;
 
     @NonNull
+    private final Clock clock;
+
+    @NonNull
+    private final Storage storage;
+
+    @NonNull
     private final OnShouldPostListener listener;
 
     @Nullable
     private ScheduledFuture pendingPost;
 
-    public Brain(@NonNull final OnShouldPostListener listener) {
+    public Brain(
+            @NonNull final Clock clock,
+            @NonNull final Storage storage,
+            @NonNull final OnShouldPostListener listener
+    ) {
+
+        this.clock = clock;
         this.listener = listener;
+        this.storage = storage;
     }
 
     void processGpioValue(final boolean gpioValue) {
@@ -47,25 +62,31 @@ final class Brain {
         if (lastPressure.equals(UNKNOWN)) return;
 
         final boolean catPresent = newPressure == Pressure.HIGH;
+        final Long tweetMs = storage.getLastTweetTimeMs();
+        final boolean coolingDown =
+                tweetMs != null && (clock.nowMs() - tweetMs) <= MINUTES.toMillis(COOLDOWN_M);
 
         if (catPresent && pendingPost == null) {
-            Log.d(TAG, "Scheduling new post.");
+            if (coolingDown) {
+                Log.d(TAG, "Cat present but cooling down from last tweet; not scheduling post.");
+            } else {
+                Log.d(TAG, "Scheduling new post.");
 
-            pendingPost = executor.schedule(
-                    () -> {
-                        Log.d(TAG, "Executing scheduled post.");
-                        pendingPost = null;
-                        listener.onShouldPost();
-                    },
-                    HIGH_PRESSURE_TRIGGER_DURATION_S,
-                    SECONDS);
+                pendingPost = executor.schedule(
+                        () -> {
+                            Log.d(TAG, "Executing scheduled post.");
+                            pendingPost = null;
+                            listener.onShouldPost();
+                            storage.setLastTweetTimeMs(clock.nowMs());
+                        },
+                        HIGH_PRESSURE_TRIGGER_DURATION_S,
+                        SECONDS);
+            }
         } else if (!catPresent && pendingPost != null) {
             Log.d(TAG, "Canceling scheduled post.");
             pendingPost.cancel(false);
             pendingPost = null;
         }
-
-        // todo never post within 5 minutes of previous post
     }
 
 }
