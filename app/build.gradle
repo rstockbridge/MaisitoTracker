@@ -13,7 +13,8 @@ android {
         buildConfigField "String", "CONSUMER_SECRET", "\"$maisitoTrackerConsumerSecret\""
         buildConfigField "String", "ACCESS_TOKEN", "\"$maisitoTrackerAccessToken\""
         buildConfigField "String", "ACCESS_TOKEN_SECRET", "\"$maisitoTrackerAccessTokenSecret\""
-        buildConfigField "boolean", "DRY_RUN", "true"
+        buildConfigField "boolean", "DRY_RUN", "false"
+        buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "60"
     }
 
     compileOptions {
