@@ -6,9 +6,6 @@ import android.util.Log;
 
 import com.github.rstockbridge.maisitotracker.posting.Poster;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;

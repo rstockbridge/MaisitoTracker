@@ -1,10 +1,20 @@
 package com.github.rstockbridge.maisitotracker;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
 
 import com.github.rstockbridge.maisitotracker.posting.PosterProvider;
 import com.google.android.things.pio.Gpio;
@@ -12,9 +22,7 @@ import com.google.android.things.pio.GpioCallback;
 import com.google.android.things.pio.PeripheralManager;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.nio.ByteBuffer;
 
 import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 import static com.google.android.things.pio.Gpio.ACTIVE_HIGH;
@@ -24,25 +32,50 @@ import static com.google.android.things.pio.Gpio.EDGE_BOTH;
 public class MainActivity extends AppCompatActivity {
 
     private final Brain brain = new Brain(new PosterProvider().getPoster());
+    private ImageView imageView;
 
     // Activity lifecycle
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
+        Log.d(TAG, "MainActivity::onCreate");
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.d(TAG, "Main Activity created");
+        imageView = findViewById(R.id.image_view);
+
+        final Button takePictureButton = findViewById(R.id.take_picture_button);
+        takePictureButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(@NonNull final View view) {
+                MaisitoCamera.instance.takePicture();
+            }
+        });
 
         gpio = configureGpio();
         processCurrentGpioValue(gpio);
+
+        cameraThread = new HandlerThread("CameraBackground");
+        cameraThread.start();
+        Handler cameraHandler = new Handler(cameraThread.getLooper());
+
+        MaisitoCamera.instance.initialize(
+                this,
+                cameraHandler,
+                onImageAvailableListener
+        );
+
+        tearingDown = false;
     }
 
     @Override
     protected void onDestroy() {
-        Log.d(TAG, "Main Activity destroyed");
+        Log.d(TAG, "MainActivity::onDestroy");
 
         tearingDown = true;
+
+        tearDownCamera();
         tearDownGpio();
 
         super.onDestroy();
@@ -53,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String GPIO_NAME = "BCM24";
 
     private Gpio gpio = null;
+    private boolean tearingDown = false;
 
     private final GpioCallback gpioCallback = new GpioCallback() {
         @Override
@@ -74,8 +108,6 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "GPIO error received: " + error);
         }
     };
-
-    private boolean tearingDown = false;
 
     @NonNull
     private Gpio configureGpio() {
@@ -115,6 +147,35 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.e(TAG, "GPIO never initialized; no teardown required.");
         }
+    }
+
+    // Camera state + methods
+
+    private HandlerThread cameraThread;
+
+    private final OnImageAvailableListener onImageAvailableListener =
+            new OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(@NonNull final ImageReader reader) {
+                    final Image image = reader.acquireLatestImage();
+                    final ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                    final byte[] bytes = new byte[buffer.remaining()];
+                    buffer.get(bytes);
+                    final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            imageView.setImageBitmap(bitmap);
+                            image.close();
+                        }
+                    });
+                }
+            };
+
+    private void tearDownCamera() {
+        cameraThread.quitSafely();
+        MaisitoCamera.instance.shutDown();
     }
 
 }
