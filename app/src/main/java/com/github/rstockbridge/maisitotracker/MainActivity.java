@@ -12,7 +12,6 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
@@ -51,12 +50,7 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
         imageView = findViewById(R.id.image_view);
 
         final Button takePictureButton = findViewById(R.id.take_picture_button);
-        takePictureButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(@NonNull final View view) {
-                MaisitoCamera.instance.takePicture();
-            }
-        });
+        takePictureButton.setOnClickListener(view -> MaisitoCamera.instance.takePicture());
 
         gpio = configureGpio();
         processCurrentGpioValue(gpio);
@@ -174,12 +168,8 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
 
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
 
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            imageView.setImageBitmap(bitmap);
-                        }
-                    });
+                    new Handler(Looper.getMainLooper())
+                            .post(() -> imageView.setImageBitmap(bitmap));
 
                     final PostData postData = new PostData(
                             "Test message",
@@ -204,12 +194,7 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
     @Override
     public void onShouldPost() {
         new Handler(Looper.getMainLooper())
-                .post(new Runnable() {
-                    @Override
-                    public void run() {
-                        MaisitoCamera.instance.takePicture();
-                    }
-                });
+                .post(MaisitoCamera.instance::takePicture);
     }
 
     //endregion
