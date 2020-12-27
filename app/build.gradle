@@ -13,14 +13,32 @@ android {
         buildConfigField "String", "CONSUMER_SECRET", "\"$maisitoTrackerConsumerSecret\""
         buildConfigField "String", "ACCESS_TOKEN", "\"$maisitoTrackerAccessToken\""
         buildConfigField "String", "ACCESS_TOKEN_SECRET", "\"$maisitoTrackerAccessTokenSecret\""
-        buildConfigField "boolean", "DRY_RUN", "false"
-        buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "60"
-        buildConfigField "long", "COOLDOWN_M", "30"
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        debug {
+            buildConfigField "boolean", "DRY_RUN", "true"
+            buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "10"
+            buildConfigField "long", "COOLDOWN_M", "1"
+        }
+
+        deploy {
+            initWith debug
+            buildConfigField "boolean", "DRY_RUN", "false"
+            buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "60"
+            buildConfigField "long", "COOLDOWN_M", "30"
+        }
+    }
+
+    variantFilter { variant ->
+        if (variant.buildType.name == 'release') {
+            variant.setIgnore(true)
+        }
     }
 
     lintOptions {
