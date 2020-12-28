@@ -27,8 +27,8 @@ import static com.github.rstockbridge.maisitotracker.Constants.TAG;
 
 public final class MaisitoCamera {
 
-    private static final int IMAGE_WIDTH = 320;
-    private static final int IMAGE_HEIGHT = 240;
+    private static final int IMAGE_WIDTH = 1640;
+    private static final int IMAGE_HEIGHT = 1232;
     private static final int MAX_IMAGES = 1;
 
     public static final MaisitoCamera instance = new MaisitoCamera();
