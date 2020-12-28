@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageReader;
-import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -12,7 +11,6 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.widget.Button;
 import android.widget.ImageView;
 
 import com.github.rstockbridge.maisitotracker.posting.PostData;
@@ -32,6 +30,10 @@ import static com.google.android.things.pio.Gpio.EDGE_BOTH;
 
 public class MainActivity extends AppCompatActivity implements Brain.OnShouldPostListener {
 
+    interface OnCustomImageAvailableListener {
+        void onImageAvailable(@NonNull ImageReader imageReader, boolean shouldPost);
+    }
+
     //region Views
 
     private ImageView imageView;
@@ -49,8 +51,9 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
 
         imageView = findViewById(R.id.image_view);
 
-        final Button takePictureButton = findViewById(R.id.take_picture_button);
-        takePictureButton.setOnClickListener(view -> MaisitoCamera.instance.takePicture());
+        findViewById(R.id.take_picture_button).setOnClickListener(view ->
+                MaisitoCamera.instance.takePicture(/*shouldPost=*/false)
+        );
 
         brain = new Brain(new SystemClock(), new SharedPrefsStorage(this), this);
 
@@ -158,10 +161,14 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
 
     private HandlerThread cameraThread;
 
-    private final OnImageAvailableListener onImageAvailableListener =
-            new OnImageAvailableListener() {
+    private final OnCustomImageAvailableListener onImageAvailableListener =
+            new OnCustomImageAvailableListener() {
                 @Override
-                public void onImageAvailable(@NonNull final ImageReader reader) {
+                public void onImageAvailable(
+                        @NonNull final ImageReader reader,
+                        final boolean shouldPost
+                ) {
+
                     final Image image = reader.acquireLatestImage();
                     final ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                     final byte[] bytes = new byte[buffer.remaining()];
@@ -173,12 +180,14 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
                     new Handler(Looper.getMainLooper())
                             .post(() -> imageView.setImageBitmap(bitmap));
 
-                    final PostData postData = new PostData(
-                            "Maisy has entered her heated bed!",
-                            new ByteArrayInputStream(bytes)
-                    );
+                    if (shouldPost) {
+                        final PostData postData = new PostData(
+                                "Maisy has entered her heated bed!",
+                                new ByteArrayInputStream(bytes)
+                        );
 
-                    new PosterProvider().getPoster().post(postData);
+                        new PosterProvider().getPoster().post(postData);
+                    }
                 }
             };
 
@@ -196,7 +205,7 @@ public class MainActivity extends AppCompatActivity implements Brain.OnShouldPos
     @Override
     public void onShouldPost() {
         new Handler(Looper.getMainLooper())
-                .post(MaisitoCamera.instance::takePicture);
+                .post(() -> MaisitoCamera.instance.takePicture(/*shouldPost=*/true));
     }
 
     //endregion

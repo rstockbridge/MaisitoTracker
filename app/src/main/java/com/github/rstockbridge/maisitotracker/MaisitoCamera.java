@@ -9,11 +9,12 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.media.ImageReader;
-import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Handler;
 import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
 import android.util.Log;
+
+import com.github.rstockbridge.maisitotracker.MainActivity.OnCustomImageAvailableListener;
 
 import java.util.Collections;
 
@@ -84,6 +85,7 @@ public final class MaisitoCamera {
 
                     Log.d(TAG, "Capture completed; closing and clearing CaptureSession.");
                     session.close();
+                    shouldPost = false;
                     captureSession = null;
                 }
             };
@@ -95,7 +97,7 @@ public final class MaisitoCamera {
     public void initialize(
             @NonNull final Context context,
             @NonNull final Handler backgroundHandler,
-            @NonNull OnImageAvailableListener imageAvailableListener
+            @NonNull final OnCustomImageAvailableListener imageAvailableListener
     ) {
 
         // Discover the camera instance
@@ -118,7 +120,10 @@ public final class MaisitoCamera {
 
         // Initialize the image processor
         imageReader = ImageReader.newInstance(IMAGE_WIDTH, IMAGE_HEIGHT, JPEG, MAX_IMAGES);
-        imageReader.setOnImageAvailableListener(imageAvailableListener, backgroundHandler);
+        imageReader.setOnImageAvailableListener(
+                imageReader -> imageAvailableListener.onImageAvailable(imageReader, shouldPost),
+                backgroundHandler
+        );
 
         // Open the camera resource
         try {
@@ -128,24 +133,31 @@ public final class MaisitoCamera {
         }
     }
 
+    private boolean shouldPost = false;
+
     /**
      * Begin a still image capture
      */
     @MainThread
-    public void takePicture() {
+    public void takePicture(final boolean shouldPost) {
         if (device == null) {
             Log.e(TAG, "Cannot capture image. Camera not initialized.");
             return;
         }
 
         try {
+            this.shouldPost = shouldPost;
+
             Log.d(TAG, "Creating capture session.");
+
             device.createCaptureSession(
                     Collections.singletonList(imageReader.getSurface()),
                     sessionCallback,
                     null
             );
         } catch (final CameraAccessException e) {
+            this.shouldPost = false;
+
             Log.e(TAG, "Camera access exception while creating capture session.", e);
         }
     }
