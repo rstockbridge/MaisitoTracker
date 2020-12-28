@@ -30,8 +30,8 @@ android {
         deploy {
             initWith debug
             buildConfigField "boolean", "DRY_RUN", "false"
-            buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "60"
-            buildConfigField "long", "COOLDOWN_M", "30"
+            buildConfigField "int", "HIGH_PRESSURE_TRIGGER_DURATION_S", "180"
+            buildConfigField "long", "COOLDOWN_M", "60"
         }
     }
 
