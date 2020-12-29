@@ -4,6 +4,9 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -63,12 +66,17 @@ final class Brain {
 
         final boolean catPresent = newPressure == Pressure.HIGH;
         final Long tweetMs = storage.getLastTweetTimeMs();
-        final boolean coolingDown =
-                tweetMs != null && (clock.nowMs() - tweetMs) <= MINUTES.toMillis(COOLDOWN_M);
+        final long cooldownMs = MINUTES.toMillis(COOLDOWN_M);
+        final boolean coolingDown = tweetMs != null && (clock.nowMs() - tweetMs) <= cooldownMs;
+        final int currentHour = LocalDateTime
+                .ofInstant(Instant.ofEpochMilli(clock.nowMs()), ZoneId.systemDefault())
+                .getHour();
 
         if (catPresent && pendingPost == null) {
             if (coolingDown) {
                 Log.d(TAG, "Cat present but cooling down from last tweet; not scheduling post.");
+            } else if (currentHour > 18 || currentHour < 7) {
+                Log.d(TAG, "Cat present but it's nighttime; not scheduling post.");
             } else {
                 Log.d(TAG, "Scheduling new post.");
 
