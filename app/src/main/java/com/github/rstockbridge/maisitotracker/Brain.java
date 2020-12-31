@@ -69,13 +69,13 @@ final class Brain {
         final long cooldownMs = MINUTES.toMillis(COOLDOWN_M);
         final boolean coolingDown = tweetMs != null && (clock.nowMs() - tweetMs) <= cooldownMs;
         final int currentHour = LocalDateTime
-                .ofInstant(Instant.ofEpochMilli(clock.nowMs()), ZoneId.systemDefault())
+                .ofInstant(Instant.ofEpochMilli(clock.nowMs()), ZoneId.of("America/Detroit"))
                 .getHour();
 
         if (catPresent && pendingPost == null) {
             if (coolingDown) {
                 Log.d(TAG, "Cat present but cooling down from last tweet; not scheduling post.");
-            } else if (currentHour > 18 || currentHour < 7) {
+            } else if (currentHour > 20 || currentHour < 9) {
                 Log.d(TAG, "Cat present but it's nighttime; not scheduling post.");
             } else {
                 Log.d(TAG, "Scheduling new post.");
