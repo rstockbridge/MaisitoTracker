@@ -3,6 +3,7 @@ package com.github.rstockbridge.maisitotracker;
 import android.content.Context;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -20,6 +21,8 @@ import java.util.Collections;
 
 import static android.content.Context.CAMERA_SERVICE;
 import static android.graphics.ImageFormat.JPEG;
+import static android.hardware.camera2.CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE;
+import static android.hardware.camera2.CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP;
 import static android.hardware.camera2.CameraDevice.TEMPLATE_STILL_CAPTURE;
 import static android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON;
 import static android.hardware.camera2.CaptureRequest.CONTROL_AE_MODE;
@@ -127,6 +130,9 @@ public final class MaisitoCamera {
 
         // Open the camera resource
         try {
+            final CameraCharacteristics characteristics = manager.getCameraCharacteristics(id);
+            Log.d(TAG, "Camera comp step: " + characteristics.get(CONTROL_AE_COMPENSATION_STEP));
+            Log.d(TAG, "Camera comp range: " + characteristics.get(CONTROL_AE_COMPENSATION_RANGE));
             manager.openCamera(id, deviceStateCallback, backgroundHandler);
         } catch (final CameraAccessException e) {
             Log.e(TAG, "Camera access exception when opening camera.", e);
